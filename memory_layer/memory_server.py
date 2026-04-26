@@ -30,7 +30,7 @@ from core import (
     semantic_search, get_proactive_context, query_causal_chains,
     predict_next_memories, cross_time_reasoning, get_memory_stats,
     apply_temporal_decay, store_causal_chain, resolve_memory_conflicts,
-    get_core_memory, update_core_memory
+    get_core_memory, update_core_memory, sync_from_supabase
 )
 from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
@@ -288,8 +288,11 @@ def background_decay_loop():
             print(f"[Auto-Decay Error] {e}")
 
 if __name__ == '__main__':
+    print("🔄 초기화 중: 외부 장기 메모리(Supabase) 동기화...")
+    sync_from_supabase()
+
     threading.Thread(target=background_consolidation_loop, daemon=True).start()
     threading.Thread(target=background_decay_loop, daemon=True).start()
     print("🚀 Luca World-Best Memory Server v2.0 on port 5050")
-    print("   Endpoints: /ingest /query /search /context /causal /predict /reason /stats /health")
+    print("   Endpoints: /ingest /query /search /context /causal /predict /reason /stats /health /core-memory")
     app.run(host='0.0.0.0', port=5050)

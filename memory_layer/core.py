@@ -19,7 +19,7 @@ if _SB_URL and _SB_KEY:
     except Exception:
         pass
 
-MODEL            = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+MODEL            = os.getenv("GEMINI_MODEL", "gemini-2.5-pro")
 os.environ["ADK_DEFAULT_LLM_MODEL"] = MODEL
 
 from google.adk.agents.llm_agent import LlmAgent
@@ -255,6 +255,62 @@ def store_memory(raw_text: str, summary: str, entities: str, topics: str,
 
     log.info(f"Memory #{mid} [{agent_id}]: {summary[:60]}")
     return {"memory_id": mid, "status": "stored", "summary": summary, "has_embedding": bool(embedding)}
+
+def sync_from_supabase():
+    """
+    Supabase에 저장된 외부(진료실 등) 메모리를 로컬 SQLite로 동기화(Pull)합니다.
+    """
+    if not supabase_client:
+        log.warning("Supabase client not initialized, skipping sync.")
+        return {"status": "skipped", "reason": "No Supabase client"}
+        
+    db = get_db()
+    cursor = db.cursor()
+    try:
+        log.info("📡 Supabase 메모리 동기화 시작...")
+        response = supabase_client.table("agent_memories").select("*").order('created_at', desc=True).limit(50).execute()
+        data = response.data
+        if not data:
+            return {"status": "success", "synced_count": 0}
+            
+        synced_count = 0
+        for row in data:
+            sb_id = row.get("id")
+            # 이미 로컬에 있는지 확인 (간단히 summary 로컬 중복 검사 또는 raw_text 검사)
+            # 가장 완벽한건 supabase_id 컬럼을 추가하는 것이지만, 일단 내용 기반 중복 방지
+            cursor.execute("SELECT id FROM memories WHERE summary = ?", (row.get("summary", ""),))
+            if cursor.fetchone() is None:
+                # 로컬에 없으면 추가
+                raw_text = row.get("raw_text", "")
+                summary = row.get("summary", "")
+                entities = row.get("entities", [])
+                topics = row.get("topics", [])
+                importance = row.get("importance", 5)
+                
+                # 임베딩 생성
+                embedding = get_embedding(summary)
+                
+                created_at = row.get("created_at")
+                if not created_at:
+                    created_at = datetime.now().isoformat()
+                
+                cursor.execute(
+                    "INSERT INTO memories (user_id, session_id, agent_id, raw_text, summary, entities, topics, importance, confidence, embedding, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    ('default_user', 'default_session', row.get('source', 'supabase'), raw_text, summary, json.dumps(entities), json.dumps(topics), importance, 0.8, json.dumps(embedding) if embedding else None, created_at)
+                )
+                mid = cursor.lastrowid
+                _auto_update_ontology(db, mid, entities, topics)
+                synced_count += 1
+                
+        db.commit()
+        log.info(f"✅ Supabase 메모리 {synced_count}개 로컬 동기화 완료.")
+        return {"status": "success", "synced_count": synced_count}
+    except Exception as e:
+        log.error(f"Supabase sync failed: {e}")
+        return {"status": "error", "error": str(e)}
+    finally:
+        db.close()
+
 
 def semantic_search(query: str, top_k: int = 5, user_id: str = None, session_id: str = None, agent_id: str = None) -> dict:
     q_emb = get_embedding(query)
