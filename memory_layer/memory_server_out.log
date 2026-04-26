@@ -1,0 +1,155 @@
+🚀 Luca Persistent Memory Server running on port 5050
+ * Serving Flask app 'memory_server'
+ * Debug mode: off
+2026-04-04 08:55:00,706 [INFO] [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5050
+ * Running on http://192.168.219.110:5050
+2026-04-04 08:55:00,706 [INFO] [33mPress CTRL+C to quit[0m
+2026-04-04 09:27:30,773 [WARNING] Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.
+2026-04-04 09:27:32,768 [INFO] Sending out request, model: gemini-3.1-flash-lite-preview, backend: GoogleLLMVariant.GEMINI_API, stream: False
+2026-04-04 09:27:33,394 [ERROR] Exception on /query [POST]
+Traceback (most recent call last):
+  File "C:\Users\sunjo\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+  File "C:\Users\sunjo\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+  File "C:\Users\sunjo\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "C:\Users\sunjo\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "C:\Users\sunjo\Desktop\luca 연구자동화에이전트\memory_layer\memory_server.py", line 86, in query
+    result = run_async(memory_agent.run(msg))
+  File "C:\Users\sunjo\Desktop\luca 연구자동화에이전트\memory_layer\memory_server.py", line 59, in run_async
+    return loop.run_until_complete(coro)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\sunjo\AppData\Local\Programs\Python\Python313\Lib\asyncio\base_events.py", line 719, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "C:\Users\sunjo\Desktop\luca 연구자동화에이전트\memory_layer\memory_server.py", line 44, in run
+    async for event in self.runner.run_async(
+    ...<5 lines>...
+                    response += part.text
+  File "C:\Users\sunjo\AppData\Local\Programs\Python\Python313\Lib\site-packages\google\adk\runners.py", line 565, in run_async
+    async for event in agen:
+      yield event
+  File "C:\Users\sunjo\AppData\Local\Programs\Python\Python313\Lib\site-packages\google\adk\runners.py", line 550, in _run_with_trace
+    async for event in agen:
+      yield event
+  File "C:\Users\sunjo\AppData\Local\Programs\Python\Python313\Lib\site-packages\google\adk\runners.py", line 782, in _exec_with_plugin
+    async for event in agen:
+    ...<64 lines>...
+        yield event
+  File "C:\Users\sunjo\AppData\Local\Programs\Python\Python313\Lib\site-packages\google\adk\runners.py", line 539, in execute
+    async for event in agen:
+      yield event
+  File "C:\Users\sunjo\AppData\Local\Programs\Python\Python313\Lib\site-packages\google\adk\agents\base_agent.py", line 295, in run_async
+    async for event in agen:
+      yield event
+  File "C:\Users\sunjo\AppData\Local\Programs\Python\Python313\Lib\site-packages\google\adk\agents\llm_agent.py", line 470, in _run_async_impl
+    async for event in agen:
+    ...<5 lines>...
+        should_pause = True
+  File "C:\Users\sunjo\AppData\Local\Programs\Python\Python313\Lib\site-packages\google\adk\flows\llm_flows\base_llm_flow.py", line 752, in run_async
+    async for event in agen:
+      last_event = event
+      yield event
+  File "C:\Users\sunjo\AppData\Local\Programs\Python\Python313\Lib\site-packages\google\adk\flows\llm_flows\base_llm_flow.py", line 829, in _run_one_step_async
+    async for llm_response in agen:
+    ...<13 lines>...
+          yield event
+  File "C:\Users\sunjo\AppData\Local\Programs\Python\Python313\Lib\site-packages\google\adk\flows\llm_flows\base_llm_flow.py", line 1186, in _call_llm_async
+    async for event in agen:
+      yield event
+  File "C:\Users\sunjo\AppData\Local\Programs\Python\Python313\Lib\site-packages\google\adk\flows\llm_flows\base_llm_flow.py", line 1169, in _call_llm_with_tracing
+    async for llm_response in agen:
+    ...<13 lines>...
+      yield llm_response
+  File "C:\Users\sunjo\AppData\Local\Programs\Python\Python313\Lib\site-packages\google\adk\flows\llm_flows\base_llm_flow.py", line 1245, in _run_and_handle_error
+    async for response in agen:
+      yield response
+  File "C:\Users\sunjo\AppData\Local\Programs\Python\Python313\Lib\site-packages\google\adk\flows\llm_flows\base_llm_flow.py", line 389, in _run_and_handle_error
+    raise model_error
+  File "C:\Users\sunjo\AppData\Local\Programs\Python\Python313\Lib\site-packages\google\adk\flows\llm_flows\base_llm_flow.py", line 374, in _run_and_handle_error
+    async for llm_response in agen:
+      tracing.trace_generate_content_result(span, llm_response)
+      yield llm_response
+  File "C:\Users\sunjo\AppData\Local\Programs\Python\Python313\Lib\site-packages\google\adk\models\google_llm.py", line 266, in generate_content_async
+    raise ce
+  File "C:\Users\sunjo\AppData\Local\Programs\Python\Python313\Lib\site-packages\google\adk\models\google_llm.py", line 245, in generate_content_async
+    response = await self.api_client.aio.models.generate_content(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "C:\Users\sunjo\AppData\Local\Programs\Python\Python313\Lib\site-packages\google\genai\models.py", line 7319, in generate_content
+    return await self._generate_content(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        model=model, contents=contents, config=parsed_config
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\sunjo\AppData\Local\Programs\Python\Python313\Lib\site-packages\google\genai\models.py", line 6095, in _generate_content
+    response = await self._api_client.async_request(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        'post', path, request_dict, http_options
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\sunjo\AppData\Local\Programs\Python\Python313\Lib\site-packages\google\genai\_api_client.py", line 1432, in async_request
+    result = await self._async_request(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^
+        http_request=http_request, http_options=http_options, stream=False
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\sunjo\AppData\Local\Programs\Python\Python313\Lib\site-packages\google\genai\_api_client.py", line 1365, in _async_request
+    return await self._async_retry(  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        self._async_request_once, http_request, stream
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\sunjo\AppData\Local\Programs\Python\Python313\Lib\site-packages\tenacity\asyncio\__init__.py", line 112, in __call__
+    do = await self.iter(retry_state=retry_state)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\sunjo\AppData\Local\Programs\Python\Python313\Lib\site-packages\tenacity\asyncio\__init__.py", line 157, in iter
+    result = await action(retry_state)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\sunjo\AppData\Local\Programs\Python\Python313\Lib\site-packages\tenacity\_utils.py", line 111, in inner
+    return call(*args, **kwargs)
+  File "C:\Users\sunjo\AppData\Local\Programs\Python\Python313\Lib\site-packages\tenacity\__init__.py", line 413, in exc_check
+    raise retry_exc.reraise()
+          ~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\sunjo\AppData\Local\Programs\Python\Python313\Lib\site-packages\tenacity\__init__.py", line 184, in reraise
+    raise self.last_attempt.result()
+          ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\sunjo\AppData\Local\Programs\Python\Python313\Lib\concurrent\futures\_base.py", line 449, in result
+    return self.__get_result()
+           ~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\sunjo\AppData\Local\Programs\Python\Python313\Lib\concurrent\futures\_base.py", line 401, in __get_result
+    raise self._exception
+  File "C:\Users\sunjo\AppData\Local\Programs\Python\Python313\Lib\site-packages\tenacity\asyncio\__init__.py", line 116, in __call__
+    result = await fn(*args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\sunjo\AppData\Local\Programs\Python\Python313\Lib\site-packages\google\genai\_api_client.py", line 1310, in _async_request_once
+    await errors.APIError.raise_for_async_response(response)
+  File "C:\Users\sunjo\AppData\Local\Programs\Python\Python313\Lib\site-packages\google\genai\errors.py", line 216, in raise_for_async_response
+    await cls.raise_error_async(status_code, response_json, response)
+  File "C:\Users\sunjo\AppData\Local\Programs\Python\Python313\Lib\site-packages\google\genai\errors.py", line 238, in raise_error_async
+    raise ClientError(status_code, response_json, response)
+google.genai.errors.ClientError: 403 PERMISSION_DENIED. {'error': {'code': 403, 'message': 'Your API key was reported as leaked. Please use another API key.', 'status': 'PERMISSION_DENIED'}}
+2026-04-04 09:27:33,415 [INFO] 127.0.0.1 - - [04/Apr/2026 09:27:33] "[35m[1mPOST /query HTTP/1.1[0m" 500 -
+2026-04-04 09:55:00,669 [WARNING] Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.
+2026-04-04 09:55:01,897 [INFO] Sending out request, model: gemini-3.1-flash-lite-preview, backend: GoogleLLMVariant.GEMINI_API, stream: False
+2026-04-04 10:55:02,347 [WARNING] Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.
+2026-04-04 10:55:04,162 [INFO] Sending out request, model: gemini-3.1-flash-lite-preview, backend: GoogleLLMVariant.GEMINI_API, stream: False
+2026-04-04 11:55:04,714 [WARNING] Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.
+2026-04-04 11:55:06,023 [INFO] Sending out request, model: gemini-3.1-flash-lite-preview, backend: GoogleLLMVariant.GEMINI_API, stream: False
+2026-04-04 12:55:06,611 [WARNING] Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.
+2026-04-04 12:55:07,898 [INFO] Sending out request, model: gemini-3.1-flash-lite-preview, backend: GoogleLLMVariant.GEMINI_API, stream: False
+2026-04-04 13:55:08,393 [WARNING] Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.
+2026-04-04 13:55:09,647 [INFO] Sending out request, model: gemini-3.1-flash-lite-preview, backend: GoogleLLMVariant.GEMINI_API, stream: False
+2026-04-04 14:55:10,090 [WARNING] Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.
+2026-04-04 14:55:11,261 [INFO] Sending out request, model: gemini-3.1-flash-lite-preview, backend: GoogleLLMVariant.GEMINI_API, stream: False

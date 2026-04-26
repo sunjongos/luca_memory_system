@@ -1,0 +1,198 @@
+import asyncio
+import json
+import logging
+import os
+import re
+from pathlib import Path
+from datetime import datetime, timezone
+from google.adk.agents import Agent
+from supabase import create_client, Client
+from dotenv import load_dotenv
+
+# Load env variables for Supabase
+load_dotenv()
+_SB_URL = os.environ.get("SUPABASE_URL", "")
+_SB_KEY = os.environ.get("SUPABASE_KEY", "")
+supabase_client: Client = None
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+log = logging.getLogger("luca-memory-cloud")
+
+if _SB_URL and _SB_KEY:
+    try:
+        supabase_client = create_client(_SB_URL, _SB_KEY)
+        log.info("✅ Supabase Memory Server Client Connected")
+    except Exception as e:
+        log.error(f"❌ Supabase Connection Failed: {e}")
+
+MODEL = os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite-preview")
+
+# ─── Core Tools (Cloud DB) ──────────────────────────────────────
+def store_memory(raw_text: str, summary: str, entities: list[str], topics: list[str], importance: float, source: str = "luca_port5050") -> dict:
+    if not supabase_client:
+        return {"error": "Supabase not connected"}
+    
+    # Store directly to Cloud
+    data = {
+        "raw_text": raw_text,
+        "summary": summary,
+        "entities": entities,  # Supabase python SDK automatically converts lists to JSONB
+        "topics": topics,
+        "importance": importance,
+        "source": source
+    }
+    res = supabase_client.table("agent_memories").insert(data).execute()
+    mid = res.data[0]["id"] if res.data else "error"
+    log.info(f"📥 Cloud Stored memory #{mid}: {summary[:60]}...")
+    return {"memory_id": mid, "status": "stored", "summary": summary}
+
+def read_all_memories(limit: int = 50) -> dict:
+    if not supabase_client:
+        return {"error": "Supabase not connected"}
+        
+    res = supabase_client.table("agent_memories").select("*").neq("source", "consolidation_insight").order("created_at", desc=True).limit(limit).execute()
+    memories = res.data
+    return {"memories": memories, "count": len(memories)}
+
+def read_unconsolidated_memories(limit: int = 15) -> dict:
+    if not supabase_client:
+        return {"error": "Supabase not connected"}
+        
+    res = supabase_client.table("agent_memories").select("*").neq("source", "consolidation_insight").order("created_at", desc=True).limit(limit * 3).execute()
+    memories = []
+    for m in res.data:
+        # Check if "__consolidated__" is in topics
+        topics = m.get("topics") or []
+        if "__consolidated__" not in topics:
+            memories.append(m)
+        if len(memories) >= limit:
+            break
+            
+    return {"memories": memories, "count": len(memories)}
+
+def store_consolidation(source_ids: list[str], summary: str, insight: str, connections: list[dict]) -> dict:
+    if not supabase_client:
+        return {"error": "Supabase not connected"}
+    
+    # 1. Store the insight itself into agent_memories
+    data = {
+        "raw_text": insight,
+        "summary": summary,
+        "entities": source_ids, # Store UUIDs of sources in entities
+        "topics": ["__consolidation_insight__"],
+        "importance": 0.9,
+        "source": "consolidation_insight"
+    }
+    supabase_client.table("agent_memories").insert(data).execute()
+    
+    # 2. Mark source memories as consolidated
+    for mid in source_ids:
+        # fetch existing topics
+        row = supabase_client.table("agent_memories").select("topics").eq("id", mid).execute()
+        if row.data:
+            existing_topics = row.data[0].get("topics") or []
+            if "__consolidated__" not in existing_topics:
+                existing_topics.append("__consolidated__")
+                supabase_client.table("agent_memories").update({"topics": existing_topics}).eq("id", mid).execute()
+                
+    # === Sync to Obsidian (Optional Local Mirror) ===
+    try:
+        base_dir = Path(__file__).resolve().parent.parent
+        wiki_dir = base_dir / "Supabase_Memory_Vault" / "Wiki"
+        if wiki_dir.exists():
+            safe_time = datetime.now().strftime("%Y%m%d_%H%M%S")
+            insight_title = f"Luca_CloudInsight_{safe_time}"
+            w_filepath = wiki_dir / f"{insight_title}.md"
+            with open(w_filepath, "w", encoding="utf-8") as f:
+                f.write(f"# {summary}\n\n{insight}\n\n### Linked IDs\n{source_ids}")
+    except Exception as e:
+        log.error(f"Failed to sync insight to Obsidian: {e}")
+
+    log.info(f"🔄 Cloud Consolidated {len(source_ids)} memories. Insight: {insight[:80]}...")
+    return {"status": "consolidated", "memories_processed": len(source_ids), "insight": insight}
+
+def read_consolidation_history(limit: int = 10) -> dict:
+    if not supabase_client:
+        return {"error": "Supabase not connected"}
+        
+    res = supabase_client.table("agent_memories").select("*").eq("source", "consolidation_insight").order("created_at", desc=True).limit(limit).execute()
+    result = [{"summary": r["summary"], "insight": r["raw_text"], "source_ids": r["entities"]} for r in res.data]
+    return {"consolidations": result, "count": len(result)}
+
+def search_obsidian_vault(keyword: str) -> dict:
+    base_dir = Path(__file__).resolve().parent.parent
+    wiki_dir = base_dir / "Supabase_Memory_Vault" / "Wiki"
+    results = []
+    if wiki_dir.exists():
+        for md_file in wiki_dir.glob("*.md"):
+            try:
+                content = md_file.read_text(encoding="utf-8", errors="ignore")
+                if keyword.lower() in content.lower() or keyword.lower() in md_file.name.lower():
+                    results.append({"title": md_file.stem, "snippet": content[:500] + "..."})
+            except Exception:
+                pass
+    return {"keyword": keyword, "obsidian_matches": results[:5]}
+
+# ─── ADK Agents Factory ──────────────────────────────────────────────
+def build_memory_agents() -> Agent:
+    ingest_agent = Agent(
+        name="ingest_agent",
+        model=MODEL,
+        description="Processes raw chat text or system input into structured database memory. Used when new info arrives.",
+        instruction=(
+            "You are Luca's Memory Ingest Agent. For any input you receive:\n"
+            "1. Extract the core meaning and create a 1-2 sentence summary.\n"
+            "2. Extract key entities (people, companies, hospital names, tasks, symptoms).\n"
+            "3. Assign 2-4 topic tags (e.g., Marketing, Patient Care, Development).\n"
+            "4. Rate importance from 0.0 to 1.0 (0.9+ for critical CEO directives).\n"
+            "5. Call `store_memory` with this structured info.\n"
+            "Confirm success in one brief sentence after storing."
+        ),
+        tools=[store_memory],
+    )
+
+    consolidate_agent = Agent(
+        name="consolidate_agent",
+        model=MODEL,
+        description="Merges related unconsolidated memories into high-level insights. Call this periodically.",
+        instruction=(
+            "You are Luca's Cognitive Consolidation Agent. Your task is to sleep-consolidate memories:\n"
+            "1. Call `read_unconsolidated_memories` to see recent raw data.\n"
+            "2. If fewer than 2 memories, reply 'Nothing to consolidate'.\n"
+            "3. Find deep connections, emerging patterns, or contradictions between them.\n"
+            "4. Create a synthesized summary and ONE powerful insight.\n"
+            "5. Call `store_consolidation` with the IDs and connections.\n"
+            "Think like a brilliant Strategy Director connecting the dots."
+        ),
+        tools=[read_unconsolidated_memories, store_consolidation],
+    )
+
+    query_agent = Agent(
+        name="query_agent",
+        model=MODEL,
+        description="Answers questions by digging into long-term stored memories, insights, and Obsidian Wiki files.",
+        instruction=(
+            "You are Luca's Memory Query Agent. When asked to recall something:\n"
+            "1. Call `read_all_memories`, `read_consolidation_history`, and `search_obsidian_vault` to search the Cloud brain and Obsidian notes.\n"
+            "2. Synthesize an accurate, helpful answer based ONLY on stored facts.\n"
+            "3. Cite your sources.\n"
+            "If no relevant memory is found, state clearly that you have no record of it."
+        ),
+        tools=[read_all_memories, read_consolidation_history, search_obsidian_vault],
+    )
+
+    orchestrator = Agent(
+        name="memory_orchestrator",
+        model=MODEL,
+        description="The Master Brain Orchestrator that routes memory jobs to sub-agents.",
+        instruction=(
+            "You are the Memory Orchestrator. Route requests:\n"
+            "- 'Remember this / Save this' -> ingest_agent\n"
+            "- 'Consolidate / Find patterns' -> consolidate_agent\n"
+            "- 'What did we talk about / Do you remember' -> query_agent\n"
+            "Report the final outcome simply."
+        ),
+        sub_agents=[ingest_agent, consolidate_agent, query_agent],
+    )
+
+    return orchestrator

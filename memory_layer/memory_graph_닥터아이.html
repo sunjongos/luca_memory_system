@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>'닥터아이' Focus Graph</title>
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #1e1e1e;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #d3d3d3;
+            overflow: hidden;
+        }
+        #mynetwork {
+            width: 100vw;
+            height: 100vh;
+            border: none;
+        }
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 1.2rem;
+            color: #a9b7c6;
+            display: none;
+        }
+        .header-title {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 10;
+            background: rgba(30, 30, 30, 0.85);
+            padding: 15px 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            border: 1px solid #444;
+            backdrop-filter: blur(5px);
+        }
+        .header-title h1 {
+            margin: 0;
+            font-size: 1.4rem;
+            color: #ffffff;
+            font-weight: 600;
+        }
+        .header-title p {
+            margin: 8px 0 0 0;
+            font-size: 0.9rem;
+            color: #aaaaaa;
+        }
+    </style>
+</head>
+<body>
+    <div class="header-title">
+        <h1>✨ '닥터아이' Focus Graph</h1>
+        <p>Obsidian Style Knowledge Network</p>
+    </div>
+    <div id="loading">그래프 렌더링 중...</div>
+    <div id="mynetwork"></div>
+
+    <script type="text/javascript">
+        const graphData = {"nodes": [{"id": 1, "label": "\ub2e5\ud130\uc544\uc774 (Dr. Eye)", "group": "\uc81c\ud488"}, {"id": 2, "label": "\ud30c\uc774\ud5ec\uc2a4\ucf00\uc5b4 (PIE Healthcare)", "group": "\uae30\uc5c5"}, {"id": 3, "label": "\uc774\uc601\uaddc", "group": "\uc778\ubb3c"}, {"id": 4, "label": "\ub2e5\ud130\uc544\uc774 X-EYE", "group": "\uc81c\ud488"}, {"id": 5, "label": "\ub2e5\ud130\uc544\uc774 X-BRAIN", "group": "\uc81c\ud488"}, {"id": 6, "label": "RetView100", "group": "\uae30\uc220/\uc7a5\ube44"}, {"id": 7, "label": "\uc720\uc5e0\uc544\uc774\uc635\ud2f1\uc2a4", "group": "\uae30\uc5c5"}, {"id": 8, "label": "\uc774\uc21c\ud0dc", "group": "\uc778\ubb3c"}, {"id": 9, "label": "\ucd5c\uc120\uc885", "group": "\uc778\ubb3c"}, {"id": 10, "label": "\uc815\uc9c4\uc5fd", "group": "\uc778\ubb3c"}, {"id": 11, "label": "\uc774\uc9c0\uc601", "group": "\uc778\ubb3c"}, {"id": 12, "label": "LCK lab", "group": "\uc5f0\uad6c\uc18c"}, {"id": 13, "label": "Oculomics", "group": "\uae30\uc220\ubd84\uc57c"}], "edges": [{"from": 2, "to": 1, "label": "\uac1c\ubc1c/\uc6b4\uc601"}, {"from": 3, "to": 2, "label": "CEO \uacb8 CTO"}, {"from": 1, "to": 4, "label": "\ud558\uc704 \uc81c\ud488"}, {"from": 1, "to": 5, "label": "\ud558\uc704 \uc81c\ud488"}, {"from": 4, "to": 6, "label": "\ud1b5\ud569"}, {"from": 6, "to": 7, "label": "\uc0dd\uc0b0"}, {"from": 8, "to": 1, "label": "\ud575\uc2ec \uc5f0\uad6c\uc9c4"}, {"from": 9, "to": 1, "label": "\uc784\uc0c1 \ubc0f \ud575\uc2ec \uae30\uc5ec\uc790"}, {"from": 10, "to": 1, "label": "\ud575\uc2ec \uc790\ubb38\uc704\uc6d0"}, {"from": 11, "to": 1, "label": "AI \uc790\ubb38\uc704\uc6d0"}, {"from": 12, "to": 1, "label": "\uc5f0\uad6c \ud30c\ud2b8\ub108"}, {"from": 1, "to": 13, "label": "\uae30\uc220 \uae30\ubc18"}]};
+        
+        const nodes = new vis.DataSet(graphData.nodes.map(node => ({
+            ...node,
+            title: node.group ? `분류: ${node.group}` : ''
+        })));
+        
+        const edges = new vis.DataSet(graphData.edges.map(edge => ({
+            ...edge,
+            font: { align: 'middle', color: '#888', size: 11, background: '#1e1e1e' },
+            arrows: 'to',
+            color: { color: '#555', highlight: '#aaa' }
+        })));
+
+        const container = document.getElementById('mynetwork');
+        const data = { nodes: nodes, edges: edges };
+        const options = {
+            nodes: {
+                shape: 'dot',
+                size: 18,
+                font: { color: '#f0f0f0', size: 14, face: 'Segoe UI', strokeWidth: 1, strokeColor: '#111' },
+                borderWidth: 2,
+                color: {
+                    border: '#2b2b2b',
+                    background: '#6a4ca6', 
+                    highlight: { border: '#ffffff', background: '#9d7bea' },
+                    hover: { border: '#ffffff', background: '#9d7bea' }
+                }
+            },
+            edges: {
+                width: 1.5,
+                smooth: { type: 'continuous' }
+            },
+            physics: {
+                forceAtlas2Based: {
+                    gravitationalConstant: -70,
+                    centralGravity: 0.015,
+                    springLength: 120,
+                    springConstant: 0.08
+                },
+                maxVelocity: 50,
+                solver: 'forceAtlas2Based',
+                timestep: 0.35,
+                stabilization: { iterations: 150 }
+            },
+            interaction: {
+                hover: true,
+                tooltipDelay: 100,
+                hideEdgesOnDrag: true
+            },
+            groups: {
+                "인물": { color: { background: '#c45151', border: '#4c2323' } },
+                "역할": { color: { background: '#d4883f', border: '#5c3a1b' } },
+                "프로젝트": { color: { background: '#4ca66b', border: '#234c31' } },
+                "기술": { color: { background: '#488cb8', border: '#20475f' } },
+                "목표": { color: { background: '#c1ad4d', border: '#5b5123' } }
+            }
+        };
+
+        const network = new vis.Network(container, data, options);
+    </script>
+</body>
+</html>
