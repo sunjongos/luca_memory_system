@@ -36,6 +36,31 @@ from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 from google.genai import types
 
+
+# ── API Error Alerting ─────────────────────────────────────────────────────
+def check_api_error_and_alert(e):
+    err_str = str(e).lower()
+    if '429' in err_str or 'quota' in err_str or 'exhausted' in err_str or 'billing' in err_str:
+        print("\n" + "="*60)
+        print("🚨 [CRITICAL] GEMINI API BILLING OR QUOTA LIMIT REACHED! 🚨")
+        print("="*60 + "\n")
+        import time
+        now = time.time()
+        if not hasattr(check_api_error_and_alert, 'last_alert') or (now - getattr(check_api_error_and_alert, 'last_alert', 0) > 600):
+            check_api_error_and_alert.last_alert = now
+            try:
+                import webbrowser
+                webbrowser.open("https://console.cloud.google.com/billing")
+            except:
+                pass
+            import sys
+            if sys.platform == "win32":
+                import threading
+                import ctypes
+                def show_popup():
+                    ctypes.windll.user32.MessageBoxW(0, "Gemini API 호출 한도 초과 (Billing/Quota Limit)\n\nGoogle Cloud Console 결제 상태를 확인하세요.\n브라우저에 결제 페이지를 띄웠습니다.", "Luca ASMR Memory Server - 결제 경고", 0x10 | 0x0)
+                threading.Thread(target=show_popup, daemon=True).start()
+
 app = Flask(__name__)
 
 # ── Rate Limiting ──────────────────────────────────────────────────────────
@@ -102,6 +127,7 @@ def ingest():
         result = run_async(memory_agent.run(msg))
         return jsonify({"status": "success", "result": result})
     except Exception as e:
+        check_api_error_and_alert(e)
         return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
 
 @app.route('/query', methods=['POST'])
@@ -119,6 +145,7 @@ def query():
         result = run_async(memory_agent.run(msg))
         return jsonify({"status": "success", "result": result})
     except Exception as e:
+        check_api_error_and_alert(e)
         return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
 
 @app.route('/consolidate', methods=['POST'])
@@ -127,6 +154,7 @@ def consolidate():
         result = run_async(memory_agent.run("Consolidate all recent unconsolidated memories now."))
         return jsonify({"status": "success", "result": result})
     except Exception as e:
+        check_api_error_and_alert(e)
         return jsonify({"error": str(e)}), 500
 
 # ── Phase 1: Semantic Search ───────────────────────────────────────────────
@@ -142,6 +170,7 @@ def search():
         result = semantic_search(query_text, top_k=top_k, agent_id=agent_id)
         return jsonify({"status": "success", "result": result})
     except Exception as e:
+        check_api_error_and_alert(e)
         return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
 
 @app.route('/decay', methods=['POST'])
@@ -151,6 +180,7 @@ def decay():
         result = apply_temporal_decay(memory_id=data.get('memory_id'))
         return jsonify({"status": "success", "result": result})
     except Exception as e:
+        check_api_error_and_alert(e)
         return jsonify({"error": str(e)}), 500
 
 # ── Phase 2: Proactive Context + Causal Chains ────────────────────────────
@@ -165,6 +195,7 @@ def context():
         result = get_proactive_context(topic, top_k=top_k)
         return jsonify({"status": "success", "result": result})
     except Exception as e:
+        check_api_error_and_alert(e)
         return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
 
 @app.route('/causal', methods=['POST'])
@@ -177,6 +208,7 @@ def causal():
         )
         return jsonify({"status": "success", "result": result})
     except Exception as e:
+        check_api_error_and_alert(e)
         return jsonify({"error": str(e)}), 500
 
 @app.route('/causal/store', methods=['POST'])
@@ -193,6 +225,7 @@ def causal_store():
         )
         return jsonify({"status": "success", "result": result})
     except Exception as e:
+        check_api_error_and_alert(e)
         return jsonify({"error": str(e)}), 500
 
 # ── Phase 3: Prediction + Cross-Time Reasoning ────────────────────────────
@@ -207,6 +240,7 @@ def predict():
         result = predict_next_memories(context_text, top_k=top_k)
         return jsonify({"status": "success", "result": result})
     except Exception as e:
+        check_api_error_and_alert(e)
         return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
 
 @app.route('/reason', methods=['POST'])
@@ -219,6 +253,7 @@ def reason():
         result = cross_time_reasoning(topic)
         return jsonify({"status": "success", "result": result})
     except Exception as e:
+        check_api_error_and_alert(e)
         return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
 
 @app.route('/stats', methods=['GET'])
@@ -227,6 +262,7 @@ def stats():
         result = get_memory_stats()
         return jsonify({"status": "success", "result": result})
     except Exception as e:
+        check_api_error_and_alert(e)
         return jsonify({"error": str(e)}), 500
 
 @app.route('/core-memory', methods=['GET', 'POST'])
@@ -247,6 +283,7 @@ def core_memory():
             res = update_core_memory(user_id, session_id, agent_id, content)
             return jsonify(res)
     except Exception as e:
+        check_api_error_and_alert(e)
         return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
 
 # ── Health Check ───────────────────────────────────────────────────────────
@@ -276,6 +313,8 @@ def background_consolidation_loop():
             if res.get("resolved_count", 0) > 0:
                 print(f"   => Resolved {res['resolved_count']} conflicting memories.")
         except Exception as e:
+            check_api_error_and_alert(e)
+        check_api_error_and_alert(e)
             print(f"[Auto-Consolidation Error] {e}")
 
 def background_decay_loop():
@@ -285,6 +324,8 @@ def background_decay_loop():
             print("[Auto-Decay] Applying temporal decay...")
             apply_temporal_decay()
         except Exception as e:
+            check_api_error_and_alert(e)
+        check_api_error_and_alert(e)
             print(f"[Auto-Decay Error] {e}")
 
 if __name__ == '__main__':
